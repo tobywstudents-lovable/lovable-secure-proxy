@@ -1,0 +1,48 @@
+import express from "express";
+import fetch from "node-fetch";
+
+const app = express();
+app.use(express.json());
+
+// כאן שימי את כל הקודים של התלמידות והמנהלת
+const CODES = {
+  "toby2026": { role: "admin" },
+  "students2026": { role: "students" },
+  "1112": { role: "student", name: "אויש" },
+  "1113": { role: "student", name: "אקשטיין" },
+  "1114": { role: "student", name: "אייזנשטיין" }
+  // המשיכי את הרשימה שלך כאן
+};
+
+app.post("/get-data", async (req, res) => {
+  const { code } = req.body;
+  if (!code || !CODES[code]) return res.status(403).json({ error: "קוד שגוי" });
+
+  // שליפה מדרופבוקס
+  const dropboxToken = "<<<שימי כאן את הטוקן שלך>>>";
+  const path = "/backup/data.json"; // הנתיב המדויק לקובץ שלך בדרופבוקס
+  const dropboxUrl = "https://content.dropboxapi.com/2/files/download";
+
+  const r = await fetch(dropboxUrl, {
+    method: "POST",
+    headers: {
+      "Authorization": `Bearer ${dropboxToken}`,
+      "Dropbox-API-Arg": JSON.stringify({ path })
+    }
+  });
+
+  const text = await r.text();
+  const data = JSON.parse(text);
+
+  // סינון לפי סוג המשתמש
+  const user = CODES[code];
+  let filtered;
+  if (user.role === "admin") filtered = data;
+  else if (user.role === "students") filtered = data.students || [];
+  else if (user.role === "student")
+    filtered = (data.students || []).filter(s => s.name === user.name);
+
+  res.json(filtered);
+});
+
+export default app;
